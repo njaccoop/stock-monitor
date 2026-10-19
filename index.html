@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="輸入持股、回答三個問題，預覽你的持股健康儀表板，帶走可以貼到 AI 的 prompt。">
+<meta name="description" content="貼一段 prompt 給你的 AI，它會問你 3 個問題、排好定期檢查，持股有事才通知你。">
 <meta property="og:title" content="持股論點設定器">
-<meta property="og:description" content="輸入持股、回答三個問題，預覽你的持股健康儀表板，帶走可以貼到 AI 的 prompt。">
+<meta property="og:description" content="貼一段 prompt 給你的 AI，它會問你 3 個問題、排好定期檢查，持股有事才通知你。">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#161a21">
 <title>持股論點設定器</title>
@@ -39,7 +39,7 @@ header.top .wrap { padding-block: 12px 10px; display: grid; gap: 10px; }
 .steps button[aria-current="step"] { color: var(--fg); font-weight: 500; }
 .steps button[aria-current="step"]::before, .steps button.done::before { background: var(--accent); }
 .steps button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-main .wrap { padding-block: 20px 120px; display: grid; gap: 16px; }
+main .wrap { padding-block: 20px 110px; display: grid; gap: 16px; }
 h2 { font-size: 20px; margin: 0; text-wrap: balance; }
 h3 { font-size: 16px; margin: 0; font-weight: 500; }
 .lead { margin: 0; color: var(--muted); max-width: 62ch; }
@@ -133,6 +133,31 @@ td.r, th.r { text-align: right; }
 .mail .body p { margin: 0; }
 .alert { padding: 10px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: 14px; margin: 0; }
 .demo-note { padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--line); color: var(--muted); font-size: 12.5px; margin: 0; }
+/* hero */
+.hero { display: grid; gap: 10px; padding-bottom: 4px; }
+.hero h2 { font-size: 24px; line-height: 1.35; }
+.flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: f; }
+.flow li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 13px; line-height: 1.45; counter-increment: f; }
+.flow li::before { content: counter(f); display: block; font-family: var(--mono); color: var(--accent); font-size: 12px; margin-bottom: 2px; }
+.hero-cta { display: flex; gap: 8px; flex-wrap: wrap; }
+.divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+.divider::before, .divider::after { content: ""; height: 1px; background: var(--line); flex: 1; }
+/* 模擬通知 */
+.notif { all: unset; box-sizing: border-box; cursor: pointer; position: fixed; z-index: 20; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 10px); width: min(420px, calc(100% - 24px)); transform: translateX(-50%); display: grid; gap: 3px; padding: 12px 14px; border-radius: 16px; background: rgba(40,46,58,.96); border: 1px solid #3a4250; box-shadow: 0 12px 32px rgba(0,0,0,.5); color: var(--fg); }
+.notif[hidden] { display: none; }
+.notif:focus-visible { outline: 2px solid var(--accent); }
+.n-app { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.n-ico { width: 20px; height: 20px; border-radius: 5px; background: var(--accent); color: #fff; font-size: 10px; display: grid; place-items: center; font-weight: 700; }
+.n-time { margin-left: auto; }
+.n-subj { font-size: 14px; font-weight: 500; line-height: 1.45; }
+.n-hint { font-size: 11.5px; color: var(--warn); }
+@media (prefers-reduced-motion: no-preference) { .notif.show { animation: drop .45s cubic-bezier(.2,.9,.3,1.2); } @keyframes drop { from { transform: translate(-50%, -140%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } } }
+dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(640px, calc(100% - 24px)); max-height: calc(100dvh - 48px); overflow: auto; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+.dlg-head { position: sticky; top: 0; background: var(--panel); display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); z-index: 1; }
+#mailDlgBody, #promptDlgBody { padding: 14px; display: grid; gap: 12px; }
+.dlg-foot { padding: 0 14px 14px; }
+.dlg-foot .btn { width: 100%; }
 /* step 4 */
 .tabs { display: flex; gap: 6px; }
 .tabs button { flex: 1; }
@@ -149,8 +174,7 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><h1>持股論點設定器</h1><span>Demo・資料快照 2026-10-19</span></div>
-    <ol class="steps" id="steps"></ol>
+    <div class="brand"><h1>持股論點設定器</h1><span>範例・資料 2026-10-19</span></div>
   </div>
 </header>
 
@@ -158,18 +182,31 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
 
 <footer class="bar">
   <div class="wrap">
-    <span class="privacy">資料只在你的瀏覽器裡，不會上傳</span>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="prevBtn" type="button">上一步</button>
-      <button class="btn primary" id="nextBtn" type="button">下一步</button>
-    </div>
+    <span class="privacy">貼給你的 AI，它會問你 3 個問題</span>
+    <button class="btn primary" id="openSheet" type="button">複製 prompt</button>
   </div>
 </footer>
 
+<button class="notif" id="notif" type="button" hidden aria-label="打開通知範例">
+  <span class="n-app"><b class="n-ico" aria-hidden="true">AI</b>AI 助理<span class="n-time">21:00</span></span>
+  <span class="n-subj" id="notifSubj"></span>
+  <span class="n-hint">範例・點開看完整通知</span>
+</button>
+
+<dialog id="mailDlg" aria-labelledby="mailDlgT">
+  <div class="dlg-head"><h3 id="mailDlgT">通知範例</h3><button class="btn ghost" type="button" data-close>關閉</button></div>
+  <div id="mailDlgBody"></div>
+  <div class="dlg-foot"><button class="btn primary" type="button" id="mailToPrompt">我也要收到這種通知</button></div>
+</dialog>
+
+<dialog id="promptDlg" aria-labelledby="promptDlgT">
+  <div class="dlg-head"><h3 id="promptDlgT">複製 prompt，交給你的 AI</h3><button class="btn ghost" type="button" data-close>關閉</button></div>
+  <div id="promptDlgBody"></div>
+</dialog>
+
 <script>
 (() => {
-  const STEP_NAMES = ['輸入持股', '回答問題', '預覽監控', '帶走 prompt'];
-
+  
   /* ===== 資料快照（固定日期，不會自動更新）=====
      價格：Yahoo Finance 日線，台股 2026-10-19 收盤、美股 2026-10-16 收盤。
      格式：[收盤日, 收盤, 前一日收盤, 一年內最高收盤] */
@@ -254,7 +291,7 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     '2880': ['華南金', 'fin', 'tw'], '2881': ['富邦金', 'fin', 'tw'], '2882': ['國泰金', 'fin', 'tw'], '2883': ['凱基金', 'fin', 'tw'], '2884': ['玉山金', 'fin', 'tw'], '2885': ['元大金', 'fin', 'tw'], '2886': ['兆豐金', 'fin', 'tw'], '2887': ['台新新光金', 'fin', 'tw'], '2889': ['國票金', 'fin', 'tw'], '2890': ['永豐金', 'fin', 'tw'], '2891': ['中信金', 'fin', 'tw'], '2892': ['第一金', 'fin', 'tw'], '2834': ['臺企銀', 'fin', 'tw'], '2801': ['彰銀', 'fin', 'tw'], '5880': ['合庫金', 'fin', 'tw'],
   };
 
-  let step = 0, qi = 0, tab = 'lite', nextId = 4;
+  let step = 0, qi = 0, nextId = 4;
   let holdings = [
     { id: 1, code: 'NVDA', shares: '20', cost: '100000', mode: 'dca', amt: '5000', ans: {}, own: {} },
     { id: 2, code: '0050', shares: '1000', cost: '90000', mode: 'dca', amt: '3000', ans: {}, own: {} },
@@ -301,65 +338,6 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     return r;
   }
 
-  function renderSteps() {
-    const ol = document.getElementById('steps'); ol.replaceChildren();
-    STEP_NAMES.forEach((n, i) => { const b = el('button', { type: 'button', class: i < step ? 'done' : '', onclick: () => go(i) }, `${i + 1}. ${n}`); if (i === step) b.setAttribute('aria-current', 'step'); ol.append(el('li', {}, b)); });
-    document.getElementById('prevBtn').disabled = step === 0;
-    const nb = document.getElementById('nextBtn');
-    nb.hidden = step === 3; nb.disabled = step === 0 && !valid().length;
-    nb.textContent = step === 1 && qi < 2 ? '下一題' : step === 2 ? '產生 prompt' : '下一步';
-  }
-  function go(i) { if (i > 0 && !valid().length) return; if (i === 1 && step !== 1) qi = 0; step = i; render(); window.scrollTo({ top: 0 }); }
-
-  /* ---------- Step 1 ---------- */
-  function step1() {
-    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' }, el('h2', { text: '先列出你的持股' }), el('p', { class: 'lead', text: '填代號和股數，就能看到比重、損益和近期事件。下面三檔是範例，可以直接改或刪掉。' }));
-    holdings.forEach((h) => {
-      const i = info(h.code);
-      const tagEl = el('span', { class: 'tag', text: i.code ? `${i.name}・${TYPES[i.type].label}` : '輸入代號' });
-      const inp = (key, attrs, onInput) => { const x = el('input', { id: key + '-' + h.id, autocomplete: 'off', ...attrs }); x.addEventListener('input', () => onInput(x)); return x; };
-      const code = inp('code', { value: h.code, placeholder: '例如 2330、NVDA' }, (x) => { h.code = x.value; h.ans = {}; const n = info(h.code); tagEl.textContent = n.code ? `${n.name}・${TYPES[n.type].label}` : '輸入代號'; renderSteps(); });
-      const shares = inp('sh', { value: h.shares, placeholder: '例如 1000', inputmode: 'decimal' }, (x) => { h.shares = x.value.replace(/[^\d.]/g, ''); });
-      const cost = inp('cost', { value: h.cost, placeholder: '選填，填了才算損益', inputmode: 'numeric' }, (x) => { h.cost = x.value.replace(/[^\d]/g, ''); });
-      const mode = el('select', { id: 'mode-' + h.id }, el('option', { value: 'dca', text: '定期定額' }), el('option', { value: 'lump', text: '單筆持有' }));
-      mode.value = h.mode; mode.addEventListener('change', () => { h.mode = mode.value; render(); });
-      const amt = inp('amt', { value: h.amt, placeholder: '選填', inputmode: 'numeric' }, (x) => { h.amt = x.value.replace(/[^\d]/g, ''); });
-      box.append(el('div', { class: 'card' }, el('div', { class: 'hrow' },
-        el('label', { class: 'f full', for: 'code-' + h.id }, '代號', code),
-        el('label', { class: 'f', for: 'sh-' + h.id }, '持有股數', shares),
-        el('label', { class: 'f', for: 'cost-' + h.id }, '總成本（台幣）', cost),
-        el('label', { class: 'f', for: 'mode-' + h.id }, '買法', mode),
-        h.mode === 'dca' ? el('label', { class: 'f', for: 'amt-' + h.id }, '每月金額（台幣）', amt) : el('div'),
-        el('div', { class: 'foot' }, tagEl, el('button', { type: 'button', class: 'btn ghost', onclick: () => { holdings = holdings.filter((x) => x !== h); render(); } }, '刪除')))));
-    });
-    box.append(el('button', { type: 'button', class: 'btn', onclick: () => { holdings.push({ id: nextId++, code: '', shares: '', cost: '', mode: 'dca', amt: '', ans: {}, own: {} }); render(); document.getElementById('code-' + (nextId - 1))?.focus(); } }, '＋ 新增一檔'));
-    box.append(el('p', { class: 'note', text: 'Demo 收錄 28 檔常見的 AI 半導體、市值型 ETF、金融股，股價與新聞是 2026-10-19 的快照。沒收錄的代號一樣能設定論點，只是預覽會顯示「未取得」。' }));
-    return box;
-  }
-
-  /* ---------- Step 2 ---------- */
-  function step2() {
-    const q = QUESTIONS[qi];
-    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' },
-      el('div', { class: 'qhead' }, el('span', { class: 'qcount', text: `問題 ${qi + 1} / 3` }), el('h2', { text: q.t }), el('p', { class: 'lead', text: q.sub })));
-    const card = el('div', { class: 'card' });
-    valid().forEach((h) => {
-      const i = info(h.code); const sug = SUGGEST[i.type][q.k]; const cur = ansOf(h, q.k);
-      const chips = el('div', { class: 'chips', role: 'group', 'aria-label': `${i.code} ${q.t}` });
-      q.o.forEach(([v, lab]) => chips.append(el('button', { type: 'button', class: 'chip', 'aria-pressed': String(cur === v), onclick: () => { h.ans[q.k] = v; render(); } }, lab, v === sug ? el('span', { class: 'sug', text: '建議' }) : null)));
-      chips.append(el('button', { type: 'button', class: 'chip', 'aria-pressed': String(cur === 'own'), onclick: () => { h.ans[q.k] = 'own'; render(); document.getElementById(`own-${h.id}-${q.k}`)?.focus(); } }, '自己填'));
-      const row = el('div', { class: 'qrow' }, el('div', { class: 'qrow-head' }, el('span', { class: 'code', text: i.code }), el('span', { text: i.name }), el('span', { class: 'tag', text: TYPES[i.type].label })), chips);
-      if (cur === 'own') {
-        const inp = el('input', { id: `own-${h.id}-${q.k}`, value: h.own[q.k] || '', placeholder: q.k === 'dip' ? '例如：跌 25% 且外資連續賣超時' : '用你自己的話寫一句' });
-        inp.addEventListener('input', () => { h.own[q.k] = inp.value; });
-        row.append(inp);
-      }
-      card.append(row);
-    });
-    box.append(card, el('p', { class: 'note', text: '標「建議」的是依類型預先選好的答案，可以直接用，也可以改。' }));
-    return box;
-  }
-
   /* ---------- Step 3：儀表板預覽 ---------- */
   function step3() {
     const hs = valid(); const rs = hs.map(calc);
@@ -380,7 +358,7 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     if (nx) parts.push(`下個重點：${md(nx[0])} ${nx[2].split('：')[0].replace(/（.*?）/, '')}。`);
     const lastDates = [...new Set(rs.filter((r) => r.has).map((r) => (r.i.mkt === 'us' ? '美股 ' : '台股 ') + md(r.date)))].sort().join('、');
     box.append(el('header', { class: 'd-head' },
-      el('h2', { text: '持股健康儀表板（預覽）' }),
+      el('h2', { text: '持股健康儀表板（範例）' }),
       el('p', { class: 'take', text: parts.join('') }),
       el('div', { class: 'asof', text: `資料快照 2026-10-19｜收盤日 ${lastDates || '未取得'}｜來源 Yahoo Finance、Google 新聞` }),
       el('nav', { class: 'strip', 'aria-label': '各檔燈號' }, rs.map((r) => { const a = el('a', { href: '#h-' + r.i.code }, el('i', { class: 'dot ' + r.st[0] }), el('span', { class: 'code', text: r.i.code }), el('span', { class: 'mu', text: r.st[1] })); a.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('h-' + r.i.code)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); return a; }))));
@@ -397,7 +375,7 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     if (aiLike.length >= 2 && aiLike.some((r) => r.i.type === 'etf') && tot) box.append(el('p', { class: 'alert', text: `集中度提醒：${aiLike.map((r) => r.i.code).join('、')} 合計佔 ${(aiLike.reduce((s, r) => s + r.value, 0) / tot * 100).toFixed(0)}%。台股市值型 ETF 約一半是台積電，會跟 AI 半導體同漲同跌。` }));
 
     /* 每檔狀態 */
-    const hold = el('div', { class: 'hold' });
+    const hold = el('div', { class: 'hold' }); HOLD_EL = hold;
     rs.forEach((r) => {
       const why = [];
       if (r.has && r.dipTh != null) why.push(r.hit ? `${r.dipBase === '本身' ? '' : r.dipBase}距高點 ${sgn(r.dipNow)}%，已碰到 ${r.dipTh}% 加碼門檻。` : `${r.dipBase === '本身' ? '' : r.dipBase}距高點 ${sgn(r.dipNow)}%，離 ${r.dipTh}% 加碼門檻還差 ${(r.dipNow - r.dipTh).toFixed(1)} 個百分點。`);
@@ -468,15 +446,29 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
       el('div', { class: 'tbl-wrap' }, el('table', {}, el('thead', {}, el('tr', {}, ['代號', '持有理由', '檢討條件', '加碼條件'].map((t) => el('th', { text: t })))),
         el('tbody', {}, hs.map((h) => el('tr', {}, el('td', { class: 'code', text: info(h.code).code }), el('td', { text: textOf(h, 'why') }), el('td', { text: textOf(h, 'exit') }), el('td', { text: textOf(h, 'dip') }))))))));
 
-    /* 範例週報 */
+    /* 範例通知：結構同實際寄出的事件信 */
     const emo = { ok: '🟢', warn: '🟡', bad: '🔴', na: '⚪' };
-    const subj = hits.length ? `【持股監控】週報：${hits.map((r) => r.i.code).join('、')} 達加碼門檻，先確認理由` : '【持股監控】週報：照常買進，無需動作';
-    box.append(el('section', { class: 'card' }, el('h3', { text: '每週六你會收到的信' }),
-      el('div', { class: 'mail' }, el('div', { class: 'subj', text: subj }),
-        el('div', { class: 'body' }, el('p', { text: parts[0] }), el('p', { text: rs.map((r) => `${emo[r.st[0]]} ${r.i.code} ${r.st[1]}`).join('　') }),
-          withCost.length ? el('p', { class: 'note', text: `總市值 ${fmt0(tot)} 元，未實現損益 ${(pnl >= 0 ? '+' : '') + fmt0(pnl)} 元（${sgn(pnl / costSum * 100)}%）` }) : null,
-          el('p', { class: 'note', text: '下週要看：' + (cal.slice(0, 2).map((c) => `${md(c[0])} ${c[2].split('：')[0]}`).join('；') || '無') }))),
-      el('p', { class: 'note', text: '平常不寄信；只有燈號改變、碰到加碼條件、重要財報公布，以及每週一封摘要時才會寄。' })));
+    const pool = rs.flatMap((r) => r.ev.map((e) => [e, r])).sort((a, b) => b[0][0].localeCompare(a[0][0]));
+    const pick = pool.find(([e]) => /獲利|EPS|法說|財報|營收/.test(e[4])) || pool[0];
+    const mailCard = el('section', { class: 'card' }, el('h3', { text: '有事時你會收到的通知' }));
+    if (pick) {
+      const [e, r] = pick; const h = hs.find((x) => info(x.code).code === r.i.code);
+      const kind = /法說/.test(e[4]) ? '法說' : /獲利|EPS|財報|營收/.test(e[4]) ? '財報' : '重大事件';
+      const mean = { pos: `這則消息支持你的理由「${textOf(h, 'why')}」，沒有碰到檢討條件「${textOf(h, 'exit')}」。`, neu: `這則消息不影響你的理由「${textOf(h, 'why')}」，也沒有碰到檢討條件。`, neg: `這則消息需要留意，但單一則新聞還不到你的檢討條件「${textOf(h, 'exit')}」，下一次財報再確認。` }[e[2]];
+      const px = r.has ? `${md(r.date)} 收盤 ${(r.i.mkt === 'us' ? '$' : '') + r.px} ${r.i.mkt === 'us' ? '美元' : '元'}，距一年高點 ${sgn(r.fh)}%。` : '';
+      const tb = el('table', {}, el('thead', {}, el('tr', {}, ['持股', '燈號', '動作'].map((t) => el('th', { text: t })))), el('tbody', {}, rs.map((x) => el('tr', {}, el('td', { text: `${x.i.name} ${x.i.code}` }), el('td', { text: `${emo[x.st[0]]} ${x.st[1]}` }), el('td', { text: x.act })))));
+      mailCard.append(el('div', { class: 'mail' },
+        el('div', { class: 'subj' }, el('span', { class: 'tag', style: 'margin-right:6px;color:var(--warn);background:var(--warn-bg)', text: '範例' }), `【持股監控】${kind}：${e[4].split('，')[0]}`),
+        el('div', { class: 'body' },
+          el('p', {}, el('b', { text: hits.length ? '結論：有事要確認。' : '結論：不需要動作。' }), `${r.i.name} ${md(e[0])} 有新消息，燈號維持 ${emo[r.st[0]]} ${r.st[1]}；其他持股燈號沒變。`),
+          el('h3', { text: '對你的影響', style: 'font-size:14px;margin-top:4px' }), el('div', { class: 'tbl-wrap' }, tb),
+          el('h3', { text: `重點（來源：${e[3]}，${e[0].replace(/-/g, '/')}）`, style: 'font-size:14px;margin-top:4px' }), el('p', { text: e[4] + '。' }),
+          el('h3', { text: '對論點的意義', style: 'font-size:14px;margin-top:4px' }), el('p', { text: mean + px }),
+          el('h3', { text: '接下來要看', style: 'font-size:14px;margin-top:4px' }), el('p', { text: cal.slice(0, 2).map((c) => `${md(c[0])} ${c[2].split('：')[0]}`).join('；') || '依公司公告' }))));
+    }
+    mailCard.append(el('p', { class: 'note', text: '用範例持股和 10/19 的真實新聞產生。沒事不通知；只有燈號改變、碰到加碼條件、持股公布財報或法說，以及每週一次摘要時才通知。' }));
+    MAIL_EL = mailCard.querySelector('.mail'); NOTIF_SUBJ = MAIL_EL ? MAIL_EL.querySelector('.subj').lastChild.textContent : '';
+    /* 通知範例只用在頂部跳出的模擬通知，不放在頁面底部 */
     return box;
   }
 
@@ -491,26 +483,103 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
   function watchLines() { return [...new Set(valid().map((h) => info(h.code).type))].map((t) => `- ${TYPES[t].label}：${TYPES[t].events.join('；')}`).join('\n'); }
   const RULES = `【燈號規則】\n- 🟢 完好：理由成立，照計畫買\n- 🟡 留意：有一項指標轉弱，暫停加碼，等下次財報\n- 🔴 受損：檢討條件被觸發，提醒我檢討是否停扣（不等於賣出）\n- ⚪ 待確認：我還沒有自己的理由\n\n【誠實規則】\n只用實際查到的資料，每個數字和新聞都標註來源與日期；查不到就寫「未取得」，不要推測或編造數字。`;
   const OUTPUT = `【每次請輸出】\n1. 一句話結論：這週要不要做任何事\n2. 各檔：燈號、股價、單日漲跌、距一年高點、損益（有成本才算），加一句有日期和來源的理由\n3. 部位比重（以台幣市值計算）\n4. 是否碰到加碼條件，以及離門檻還差多少\n5. 近期事件：只列跟持股有關的，每則標日期、來源、正面／負面／中性\n6. 接下來要看的日期（最多 3 項，預估的要標「預估」）`;
-  function litePrompt() {
-    return `你是我的持股論點檢查助理。我是長期投資人，不看技術分析。請依我寫下的持有理由檢查持股，不要給買賣建議，只判斷理由還成不成立。\n\n【我的持股與論點】\n${holdingLines()}\n\n【每類持股要留意的事件】\n${watchLines()}\n\n${RULES}\n\n${OUTPUT}\n\n請先確認你理解以上設定，有「還不確定」的先跟我釐清，再開始第一次檢查。之後我每週會說「照論點檢查本週持股」。`;
+  /* ---------- 頁面：展示頁 ---------- */
+  let HOLD_EL = null, MAIL_EL = null, NOTIF_SUBJ = '', notified = false;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function hero() {
+    return el('section', { class: 'hero' },
+      el('h2', { text: '持股有事才通知你的 AI 助理' }),
+      el('p', { class: 'lead', text: '貼一段 prompt 給你的 AI，它會問你持股和 3 個問題，再幫你排好定期檢查：沒事不吵你，有事才通知，而且每個數字都標來源和日期。' }),
+      el('ol', { class: 'flow' }, el('li', { text: '複製 prompt，貼給你的 AI' }), el('li', { text: '回答 3 題：為什麼買、何時檢討、跌多少加碼' }), el('li', { text: 'AI 排好檢查，有事才通知' })),
+      el('div', { class: 'hero-cta' }, el('button', { type: 'button', class: 'btn primary', onclick: openPrompt }, '複製 prompt'), el('button', { type: 'button', class: 'btn', onclick: openMail }, '看通知範例')),
+      el('div', { class: 'divider', text: '以下用範例持股 NVDA、0050、2884 與 2026-10-19 的真實資料產生' }));
   }
-  function fullPrompt() {
-    return `我想建立一套自動化的持股論點監控（適用可排程、可上網的 AI 助理）。請照以下設定建立，每一步完成後告訴我結果。\n\n【我的持股與論點】\n${holdingLines()}\n\n【每類持股要留意的事件】\n${watchLines()}\n\n【要建立的東西】\n1. 持股儀表板，由上到下：一句話結論、各檔燈號列、摘要數字（總市值、未實現損益、最近一日變動、碰到加碼門檻的檔數）、每檔卡片（燈號、建議動作、一句有日期的理由、股價、單日、距高點、損益）、部位比重圖、加碼條件進度條、本週重點、市場概況、近期事件（日期＋來源）、重要日期、論點表。頁首標最後更新時間和股價日期。\n2. 每個交易日收盤後的排程：抓價格與新聞，依論點判斷燈號；休市不抓。\n3. 通知（寄到我的信箱）：只在燈號改變、碰到加碼條件、重要財報公布、抓資料失敗，以及每週一封精簡週報時通知；主旨要看得出要不要行動。\n\n【資料來源原則】\n- 每個面向先定首選與備援來源，不要每次查全部網站。\n- 優先用官方來源：美股看 SEC 財報新聞稿與法說逐字稿；台股看公開資訊觀測站、證交所。\n- 先實測每個來源讀不讀得到，讀不到的不放進排程。\n\n${RULES}\n\n請先列出你打算怎麼建，以及在我的環境下做不到的部分，等我確認再開始。`;
+  function openDlg(id) { const d = document.getElementById(id); if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+  function openMail() {
+    hideNotif(); const body = document.getElementById('mailDlgBody'); body.replaceChildren();
+    if (MAIL_EL) body.append(MAIL_EL.cloneNode(true));
+    body.append(el('p', { class: 'note', text: '沒事不通知；只有燈號改變、碰到加碼條件、持股公布財報或法說，以及每週一次摘要時才通知。' }));
+    openDlg('mailDlg');
   }
-  function step4() {
-    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' }, el('h2', { text: '把設定帶走' }), el('p', { class: 'lead', text: '複製 prompt 貼到你常用的 AI 對話，就能拿到跟預覽一樣、但用當天資料的檢查結果。' }));
-    const tabs = el('div', { class: 'tabs', role: 'tablist' });
-    [['lite', '輕量版：每週手動問'], ['full', '完整版：自動化']].forEach(([k, l]) => tabs.append(el('button', { type: 'button', class: 'btn', role: 'tab', 'aria-selected': String(tab === k), onclick: () => { tab = k; render(); } }, l)));
-    const ta = el('textarea', { id: 'prompt', readonly: '', 'aria-label': 'prompt 內容' }); ta.value = tab === 'lite' ? litePrompt() : fullPrompt();
+  function openPrompt() {
+    const d = document.getElementById('mailDlg'); if (d.open) d.close();
+    const body = document.getElementById('promptDlgBody'); body.replaceChildren();
+    const ta = el('textarea', { id: 'prompt', readonly: '', 'aria-label': 'prompt 內容' }); ta.value = interviewPrompt();
     const done = el('span', { class: 'copied', 'aria-live': 'polite' });
-    const copy = el('button', { type: 'button', class: 'btn primary', onclick: async () => { try { await navigator.clipboard.writeText(ta.value); done.textContent = '已複製'; } catch (e) { ta.focus(); ta.select(); done.textContent = '已全選，請按複製'; } setTimeout(() => { done.textContent = ''; }, 2500); } }, '複製 prompt');
-    box.append(tabs, el('p', { class: 'note', text: tab === 'lite' ? '貼到 ChatGPT、Claude、Gemini 都可以（需要能上網查資料），之後每週說一句「照論點檢查本週持股」。' : '給想要自動排程、儀表板和通知的人。需要能排程、能上網的 AI 工具。' }), ta, el('div', { style: 'display:flex;gap:10px;align-items:center' }, copy, done), el('p', { class: 'note', text: '這是方法示範，不是投資建議。prompt 只包含你在這頁輸入的內容。' }));
-    return box;
+    const copy = el('button', { type: 'button', class: 'btn primary', onclick: async () => { try { await navigator.clipboard.writeText(ta.value); done.textContent = '已複製，去貼給你的 AI'; } catch (e) { ta.focus(); ta.select(); done.textContent = '已全選，請按複製'; } setTimeout(() => { done.textContent = ''; }, 3000); } }, '複製 prompt');
+    body.append(
+      el('ol', { class: 'lst', style: 'padding-left:1.3em' },
+        el('li', { text: '複製下面的 prompt。' }),
+        el('li', { text: '貼到支援排程任務的 AI，例如 ChatGPT 的排程任務、Gemini 的排定動作、Claude 的排程任務；要用能上網查資料的模式。' }),
+        el('li', { text: '回答它的問題，確認它回覆「已建立排程」和下次執行時間，並打開那個 App 的通知。' })),
+      el('div', { style: 'display:flex;gap:10px;align-items:center' }, copy, done), ta,
+      el('p', { class: 'note', text: '各家的功能名稱、免費版能不能用、每天能排幾次都常在變，以官方說明為準。通知靠各 App 的推播或信件，偶爾會漏，重要日期建議自己也看一眼。' }),
+      el('p', { class: 'demo-note', text: '想要一個隨時能打開、每天自動更新的持股儀表板？「儀表板版」下次分享。' }),
+      el('p', { class: 'note', text: '這是方法示範，不是投資建議。' }));
+    openDlg('promptDlg');
+  }
+  function showNotif() {
+    if (notified || !NOTIF_SUBJ || document.querySelector('dialog[open]')) return; notified = true;
+    const n = document.getElementById('notif'); document.getElementById('notifSubj').textContent = NOTIF_SUBJ;
+    n.hidden = false; if (!reduce) { n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); }
+    setTimeout(hideNotif, 9000);
+  }
+  function hideNotif() { document.getElementById('notif').hidden = true; }
+
+  function interviewPrompt() {
+    const Q = QUESTIONS.map((q) => `   - ${q.t}（${q.o.map((o) => o[1]).join('／')}，或我自己寫）`).join('\n');
+    return `你是我的持股論點檢查助理。我是長期投資人，不看技術分析。請依我寫下的持有理由檢查持股，不要給買賣建議，只判斷理由還成不成立。
+
+【第一步：先訪談我，一次問一題】
+1. 請我列出持股：代號、股數；總成本、是不是定期定額（每月多少）可以選填。
+2. 每一檔都問同樣三題，附上選項，也讓我自己寫：
+${Q}
+   跌幅以距一年高點計算；市值型 ETF 看大盤，個股要「理由還成立」才算觸發。
+   我回答「還不確定」的，請整理這檔常見的持有理由或檢討條件讓我挑。
+3. 依持股類型列出要留意的事件讓我確認，例如：AI 半導體看雲端大廠資本支出指引、台積電月營收；市值型 ETF 看大盤距高點跌幅；金融股看自結盈餘、配息、合併或增資。
+4. 問完整理成一張表（代號、持有理由、檢討條件、加碼條件），等我確認。
+
+${RULES}
+
+【通知格式】每則都照這個順序，不要省略來源：
+主旨：【持股監控】{財報／法說／重大事件／加碼條件}：{一句話，看得出要不要行動}
+1. 結論：要不要動作，一句話
+2. 對你的影響：各檔燈號與動作
+3. 重點：數字和事實，標來源與發布時間
+4. 對論點的意義：對照我寫的持有理由與檢討條件，並附今日收盤和距一年高點
+5. 接下來要看：最多 3 個日期，預估的標「預估」
+
+範例（照這個具體程度寫）：
+【持股監控】財報：玉山金前 9 月 EPS 1.95 元
+結論：不需要動作。玉山金 10/16 公布獲利，燈號維持 🟢 完好。
+重點（工商時報，2026/10/16）：前 9 月獲利 318.5 億元、EPS 1.95 元，創同期新高。
+對論點的意義：支持你的理由「穩定領股息」，沒有碰到檢討條件「配息明顯減少」。10/19 收盤 49.35 元，距一年高點 0.0%。
+
+${OUTPUT.replace('【每次請輸出】', '【週報格式】')}
+
+【排程】確認表格後，請幫我建立兩個排程任務（台北時間）：
+1. 每週六 21:00：完整檢查一次，照【週報格式】給我週報。
+2. 每個交易日 21:00：只檢查有沒有這些事——燈號改變、碰到加碼條件、持股公布財報／法說會／月營收或自結盈餘。有才照【通知格式】通知我；沒有就不要通知。
+如果你的排程次數有限，只建立第 1 個。
+
+建立前先做第一次檢查給我看。建立完成後，告訴我排程名稱、下次執行時間，以及要去哪裡打開通知。現在請從訪談的第 1 題開始。`;
   }
 
-  function render() { renderSteps(); document.getElementById('view').replaceChildren([step1, step2, step3, step4][step]()); }
-  document.getElementById('prevBtn').addEventListener('click', () => { if (step === 1 && qi > 0) { qi--; render(); window.scrollTo({ top: 0 }); } else if (step > 0) { const was = step; go(step - 1); if (was === 2) { qi = 2; render(); } } });
-  document.getElementById('nextBtn').addEventListener('click', () => { if (step === 1 && qi < 2) { qi++; render(); window.scrollTo({ top: 0 }); } else if (step < 3) go(step + 1); });
+  function render() {
+    document.getElementById('view').replaceChildren(hero(), step3());
+    if (HOLD_EL && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((ents) => { ents.forEach((e) => { if (!e.isIntersecting && e.boundingClientRect.bottom < 0) { showNotif(); io.disconnect(); } }); });
+      io.observe(HOLD_EL);
+    }
+    window.addEventListener('scroll', () => { if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 40) showNotif(); }, { passive: true });
+  }
+  let dwellSet = false;
+  window.addEventListener('scroll', () => { if (!dwellSet && window.scrollY > 200) { dwellSet = true; setTimeout(showNotif, 4000); } }, { passive: true });
+  document.getElementById('notif').addEventListener('click', openMail);
+  document.getElementById('openSheet').addEventListener('click', openPrompt);
+  document.getElementById('mailToPrompt').addEventListener('click', openPrompt);
+  document.querySelectorAll('dialog [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+  document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
   render();
 })();
 </script>
