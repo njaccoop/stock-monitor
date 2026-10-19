@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="輸入持股、回答三個問題，預覽你的持股健康儀表板，帶走可以貼到 AI 的 prompt。">
+<meta property="og:title" content="持股論點設定器">
+<meta property="og:description" content="輸入持股、回答三個問題，預覽你的持股健康儀表板，帶走可以貼到 AI 的 prompt。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#161a21">
+<title>持股論點設定器</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 深色單欄流程（與持股健康儀表板同一套視覺）；頂部步驟條、底部固定操作列；手機優先，桌機最寬 860px */
+:root {
+  --bg: #0e1116; --panel: #161a21; --panel-2: #1d222b; --line: #2a313c;
+  --fg: #e9edf2; --muted: #98a2b3; --accent: #f05a6b; --accent-bg: rgba(240,90,107,.14);
+  --ok: #22c55e; --warn: #f59e0b; --bad: #ef4444; --na: #64748b;
+  --ok-bg: rgba(34,197,94,.14); --warn-bg: rgba(245,158,11,.14); --bad-bg: rgba(239,68,68,.14); --na-bg: rgba(100,116,139,.18);
+  --c1: #60a5fa; --c2: #a78bfa; --c3: #2dd4bf; --c4: #f472b6; --c5: #facc15; --c6: #475163;
+  --sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; } body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+.wrap { max-width: 860px; margin-inline: auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+header.top .wrap { padding-block: 12px 10px; display: grid; gap: 10px; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand h1 { margin: 0; font-size: 17px; font-weight: 700; border-left: 2px solid var(--accent); padding-left: 8px; line-height: 1.2; }
+.brand span { color: var(--muted); font-size: 12px; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.steps button { all: unset; cursor: pointer; display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.steps button::before { content: ""; height: 3px; border-radius: 2px; background: var(--line); }
+.steps button[aria-current="step"] { color: var(--fg); font-weight: 500; }
+.steps button[aria-current="step"]::before, .steps button.done::before { background: var(--accent); }
+.steps button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+main .wrap { padding-block: 20px 120px; display: grid; gap: 16px; }
+h2 { font-size: 20px; margin: 0; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; font-weight: 500; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+.code { font-family: var(--mono); font-weight: 500; }
+.num { font-variant-numeric: tabular-nums; }
+.tag { display: inline-flex; align-items: center; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.btn { font: inherit; font-size: 14px; border-radius: 8px; padding: 10px 14px; border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); cursor: pointer; }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 500; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 6px 8px; }
+.btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: .4; cursor: default; }
+/* step 1 */
+.hrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hrow .full { grid-column: 1 / -1; }
+.hrow .foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* step 2 */
+.qhead { display: grid; gap: 6px; }
+.qcount { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.qrow { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.qrow:first-of-type { border-top: 0; padding-top: 0; }
+.qrow-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-bg); font-weight: 500; }
+.chip .sug { color: var(--muted); font-size: 11px; margin-left: 4px; }
+/* step 3：儀表板 */
+.d-head { display: grid; gap: 6px; }
+.d-head h2 { font-size: 22px; }
+.take { margin: 0; font-size: 15px; line-height: 1.65; max-width: 46rem; }
+.asof { color: var(--muted); font-size: 12.5px; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.strip a { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); text-decoration: none; font-size: 14px; }
+.strip a:focus-visible { outline: 2px solid var(--accent); }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--na); box-shadow: 0 0 0 3px var(--na-bg); flex: none; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); } .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); } .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.tile .lb { color: var(--muted); font-size: 12px; }
+.tile .big { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.35; margin-top: 2px; }
+.tile .sub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.hold { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 10px; }
+.hc { border: 1px solid var(--line); border-top: 4px solid var(--na); border-radius: 10px; padding: 12px; display: grid; gap: 8px; align-content: start; background: var(--panel-2); scroll-margin-top: 120px; }
+.hc.ok { border-top-color: var(--ok); background: linear-gradient(var(--ok-bg), transparent 60%), var(--panel-2); }
+.hc.warn { border-top-color: var(--warn); background: linear-gradient(var(--warn-bg), transparent 60%), var(--panel-2); }
+.hc.bad { border-top-color: var(--bad); background: linear-gradient(var(--bad-bg), transparent 60%), var(--panel-2); }
+.hc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hc-name { font-weight: 500; }
+.hc-code { color: var(--muted); font-size: 12px; margin-left: 6px; font-family: var(--mono); }
+.pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; color: #0b0d10; background: var(--na); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .55; }
+.pill.ok { background: var(--ok); } .pill.warn { background: var(--warn); } .pill.bad { background: var(--bad); color: #fff; } .pill.na { color: #fff; }
+.hc-act { font-weight: 500; }
+.hc-why { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.55; }
+.hc-nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; font-variant-numeric: tabular-nums; font-size: 14px; }
+.hc-nums div { display: grid; gap: 1px; min-width: 0; }
+.hc-nums span:first-child { color: var(--muted); font-size: 11.5px; }
+.up { color: var(--ok); } .dn { color: var(--bad); } .mu { color: var(--muted); }
+.wbar { display: flex; gap: 2px; height: 28px; }
+.wbar i { border-radius: 4px; min-width: 3px; }
+.wleg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.wleg span { display: inline-flex; align-items: center; gap: 6px; }
+.wleg b { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 10px; }
+.rule { display: grid; gap: 6px; padding-block: 8px; border-top: 1px solid var(--line); }
+.rule:first-child { border-top: 0; padding-top: 0; }
+.rule-top { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.track { position: relative; height: 8px; background: #262c36; border-radius: 4px; }
+.track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: #475163; }
+.track i.hit { background: var(--bad); }
+.track s { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #cbd5e1; }
+.rule-txt { font-size: 12px; color: var(--muted); }
+ul.lst { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 14px; line-height: 1.55; }
+.ev { display: grid; grid-template-columns: 3.4rem 1fr; gap: 8px 10px; font-size: 13px; line-height: 1.5; }
+.ev .d { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ev .src { color: var(--muted); }
+.ip { font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 999px; margin-right: 6px; white-space: nowrap; }
+.ip.pos { background: var(--ok-bg); color: var(--ok); } .ip.neg { background: var(--bad-bg); color: var(--bad); } .ip.neu { background: var(--na-bg); color: #cbd5e1; }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+td.r, th.r { text-align: right; }
+.mail { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.mail .subj { background: var(--panel-2); padding: 10px 12px; font-size: 14px; font-weight: 500; }
+.mail .body { padding: 12px; font-size: 14px; display: grid; gap: 8px; }
+.mail .body p { margin: 0; }
+.alert { padding: 10px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: 14px; margin: 0; }
+.demo-note { padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--line); color: var(--muted); font-size: 12.5px; margin: 0; }
+/* step 4 */
+.tabs { display: flex; gap: 6px; }
+.tabs button { flex: 1; }
+.tabs button[aria-selected="true"] { border-color: var(--fg); font-weight: 500; }
+textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; width: 100%; min-height: 320px; color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; resize: vertical; }
+.copied { font-size: 13px; color: var(--ok); }
+footer.bar { position: fixed; inset: auto 0 0; z-index: 5; background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+footer.bar .wrap { padding-block: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+footer.bar .privacy { font-size: 12px; color: var(--muted); }
+@media (max-width: 420px) { .hc-nums { font-size: 13px; } .tile .big { font-size: 21px; } }
+@media (prefers-reduced-motion: no-preference) { .panel { animation: in .2s ease-out; } @keyframes in { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: none; } } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>持股論點設定器</h1><span>Demo・資料快照 2026-10-19</span></div>
+    <ol class="steps" id="steps"></ol>
+  </div>
+</header>
+
+<main><div class="wrap" id="view"></div></main>
+
+<footer class="bar">
+  <div class="wrap">
+    <span class="privacy">資料只在你的瀏覽器裡，不會上傳</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="prevBtn" type="button">上一步</button>
+      <button class="btn primary" id="nextBtn" type="button">下一步</button>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const STEP_NAMES = ['輸入持股', '回答問題', '預覽監控', '帶走 prompt'];
+
+  /* ===== 資料快照（固定日期，不會自動更新）=====
+     價格：Yahoo Finance 日線，台股 2026-10-19 收盤、美股 2026-10-16 收盤。
+     格式：[收盤日, 收盤, 前一日收盤, 一年內最高收盤] */
+  const SNAP_FX = 32.451; // 美元兌台幣，2026-10-19
+  const PX = {
+    NVDA: ['2026-10-16', 214.13, 217.23, 239.24], AVGO: ['2026-10-16', 328.75, 344.33, 481.57], AMD: ['2026-10-16', 528.75, 562.23, 649.42], TSM: ['2026-10-16', 412.61, 422.25, 485.8],
+    '2330': ['2026-10-19', 2420, 2420, 2585], '2454': ['2026-10-19', 4205, 4250, 5285], '3711': ['2026-10-19', 670, 671, 762], '2382': ['2026-10-19', 314.5, 322, 417],
+    '0050': ['2026-10-19', 108.15, 109, 116.5], '006208': ['2026-10-19', 247.9, 250.35, 265.9], VOO: ['2026-10-16', 701.61, 709.43, 716.2], VTI: ['2026-10-16', 374.07, 378.42, 384.3], SPY: ['2026-10-16', 763.25, 771.79, 779.09],
+    '2880': ['2026-10-19', 48.7, 48.9, 49.65], '2881': ['2026-10-19', 158.5, 161.5, 161.5], '2882': ['2026-10-19', 114.5, 116, 116], '2883': ['2026-10-19', 38.2, 39.1, 40.45], '2884': ['2026-10-19', 49.35, 49.15, 49.35],
+    '2885': ['2026-10-19', 71.7, 72.9, 72.9], '2886': ['2026-10-19', 53.9, 53.7, 53.9], '2887': ['2026-10-19', 42.35, 42.45, 44.4], '2889': ['2026-10-19', 16.8, 16.95, 17.445], '2890': ['2026-10-19', 45.25, 45.75, 45.95],
+    '2891': ['2026-10-19', 73.4, 73.6, 73.6], '2892': ['2026-10-19', 41.1, 41.5, 41.6], '2834': ['2026-10-19', 17.9, 18.05, 18.75], '2801': ['2026-10-19', 29.2, 29.5, 29.6], '5880': ['2026-10-19', 28.05, 28.15, 28.15],
+  };
+  const MKT = [ // [指標, 收盤日, 收盤, 前一日, 一年最高收盤, 用在哪些類型]
+    ['台股加權指數', '2026-10-19', 46822.08, 47111.26, 49822.55, ['etf-tw', 'fin', 'ai-tw']],
+    ['費城半導體', '2026-10-16', 11137.29, 11581.21, 14634.72, ['ai', 'ai-tw']],
+    ['S&P 500', '2026-10-16', 7659.44, 7744.06, 7818.93, ['etf-us', 'ai']],
+    ['美元兌台幣', '2026-10-19', 32.451, 32.327, 32.769, ['usd']],
+  ];
+  /* 近期事件：Google 新聞 2026-10-05～10-19 的標題，依標題內容改寫成一句；只放標題本身寫到的事實 */
+  const EVENTS = [
+    ['2026-10-19', ['NVDA'], 'neg', '鉅亨網', '輝達在中國 AI 晶片市佔降到 34%，華為以 28% 居次'],
+    ['2026-10-15', ['NVDA', 'AMD', 'AVGO'], 'neg', 'CNBC', '市場擔心 AI 投資的資金來源，輝達領跌晶片股'],
+    ['2026-10-13', ['AVGO'], 'neg', 'Financial Times', '博通執行長把 AI 投資比喻成「賭場」，晶片股下跌'],
+    ['2026-10-07', ['AVGO'], 'neg', 'Bloomberg', '博通洽談約 500 億美元融資，協助 OpenAI 購買其晶片'],
+    ['2026-10-17', ['AMD'], 'neu', '工商時報', 'AMD 以 Helios 平台迎戰輝達，擴大下單台灣供應鏈'],
+    ['2026-10-15', ['2330', 'TSM', '0050', '006208', '2454', '3711', '2382'], 'pos', '經濟日報', '台積電法說上修全年營收至年增 44%，第四季預估季增 14%'],
+    ['2026-10-19', ['2330', 'TSM', '0050', '006208'], 'neg', '理財周刊', '外資 9 天賣超台股約 7,585 億元，央行罕見出手'],
+    ['2026-10-19', ['2454'], 'pos', '工商時報', 'AI ASIC 搶單，聯發科手握 Google 訂單並爭取新客戶'],
+    ['2026-10-16', ['3711'], 'pos', '經濟日報', '先進封裝需求續強，法人調高日月光投控獲利預估與目標價'],
+    ['2026-10-19', ['3711'], 'neu', '自由時報', '日月光投控表示漲價有必要'],
+    ['2026-10-19', ['2382', 'NVDA'], 'neu', '經濟日報', '輝達 GTC 柏林 10/20 登場，鴻海、廣達等 AI 供應鏈參與'],
+    ['2026-10-18', ['006208'], 'pos', '經濟日報', '006208 公布配息，金額創新紀錄'],
+    ['2026-10-19', ['0050', '006208'], 'neu', '工商時報', '台股下跌期間散戶逢低買進，0050、0056 受益人數雙創新高'],
+    ['2026-10-15', ['VOO', 'VTI', 'SPY'], 'neu', '鉅亨網', '七大科技股市值逼近 25 兆美元，標普 500 逾四成成分股今年下跌'],
+    ['2026-10-15', ['VOO', 'VTI', 'SPY', 'NVDA', 'AVGO', 'AMD'], 'neg', '理財周刊', '美國通膨升至 3.7%，費半單日重挫 4.3%'],
+    ['2026-10-16', ['2884'], 'pos', '工商時報', '玉山金前 9 月獲利 318.5 億元、EPS 1.95 元，創同期新高'],
+    ['2026-10-18', ['2884'], 'neu', '經濟日報', '兩樁金控整併後，玉山金資產規模排名進入前五'],
+    ['2026-10-14', ['2883'], 'neg', 'Yahoo 股市', '凱基金 9 月獲利月減 54%，前三季 EPS 2.26 元仍創同期新高'],
+    ['2026-10-07', ['2883'], 'neg', '台視', '凱基金辦理 200 億元現金增資'],
+    ['2026-10-19', ['2889'], 'neu', 'MoneyDJ', '國票金法說：前三季獲利年增 116%，併購「積極評估各種可行方案」，未公布時程'],
+    ['2026-10-19', ['2801', '2889'], 'neu', '經濟日報', '金管會回應彰銀、國票金若合併的兩大考題'],
+    ['2026-10-07', ['2834'], 'neu', 'MoneyDJ', '臺企銀自結前三季合併獲利 114.54 億元，EPS 1.10 元'],
+    ['2026-10-19', ['2834'], 'pos', '富聯網', '投信一週買超臺企銀 3,079 張'],
+    ['2026-10-19', ['2881', '2882'], 'pos', '工商時報', '富邦金、國泰金獲利亮眼，台股下跌時撐盤'],
+    ['2026-10-19', ['2881', '2882'], 'neg', 'Yahoo 股市', '5 檔台股 ETF 調整成分股，富邦金、國泰金被剔除'],
+    ['2026-10-18', ['2880'], 'pos', 'LINE TODAY', '公股 4 金 2 銀前 3 季獲利 1,345 億元，年增逾 2 成'],
+    ['2026-10-17', ['2886'], 'pos', '經濟日報', '兆豐金股價漲破新高'],
+    ['2026-10-17', ['2886', '2892', '5880'], 'neu', '經濟日報', '公股投信四合一，第一金、兆豐金等 10/22 開董事會決議'],
+    ['2026-10-19', ['2885', '2880', '2881', '2882', '2884', '2886', '2887', '2890', '2891', '2892', '5880'], 'pos', '自由時報', '金融股指數今年漲近 57%，創新高'],
+    ['2026-10-19', ['2891'], 'neu', 'Yahoo 新聞', '中信金在台北金融科技展首度展示 4 項 AI Agent 應用'],
+    ['2026-10-19', ['5880'], 'pos', '富聯網', '外資買超合庫金'],
+  ];
+  /* 重要日期：標「預估」的以公司公告為準 */
+  const CAL = [
+    ['2026-10-20', ['NVDA', 'ai'], '輝達 GTC 柏林登場'],
+    ['2026-10-22', ['2886', '2892', '5880'], '公股投信四合一董事會'],
+    ['2026-10-28', ['ai', 'etf-us'], '微軟、Google、Meta 財報（Google 已確認，其他預估）：看 AI 資本支出指引'],
+    ['2026-10-30', ['ai', 'etf-us'], '亞馬遜財報（預估）'],
+    ['2026-11-10', ['ai-tw', 'etf-tw', 'fin'], '台股 10 月營收、金控 10 月自結盈餘'],
+    ['2026-11-19', ['NVDA', 'ai'], '輝達財報（預估）'],
+    ['2026-12-11', ['AVGO'], '博通財報（預估）'],
+  ];
+
+  const QUESTIONS = [
+    { k: 'why', t: '你為什麼買這檔？', sub: '之後 AI 會檢查這個理由還成不成立。', o: [
+      ['trend', '看好產業長期趨勢'], ['moat', '公司競爭力強、對手追不上'], ['market', '參與整體市場成長'], ['div', '穩定領股息'], ['unsure', '還不確定']] },
+    { k: 'exit', t: '發生什麼事，你會停扣或檢討？', sub: '寫的是「理由改變了」的訊號，AI 會幫你盯。', o: [
+      ['demand', '產業需求轉弱'], ['decline', '營收或獲利連續衰退'], ['divcut', '配息明顯減少'], ['never', '不賣，只看加碼時機'], ['unsure', '還不確定']] },
+    { k: 'dip', t: '跌多少，你會想多買一點？', sub: '以距一年高點的跌幅計算；個股會加上「理由還成立」才觸發。', o: [
+      ['10', '跌 10%'], ['20', '跌 20%'], ['30', '跌 30%'], ['no', '不加碼']] },
+  ];
+  const SUGGEST = { ai: { why: 'trend', exit: 'demand', dip: '30' }, etf: { why: 'market', exit: 'never', dip: '10' }, fin: { why: 'div', exit: 'divcut', dip: 'no' }, other: {} };
+  const TYPES = {
+    ai: { label: 'AI 半導體', events: ['雲端大廠資本支出指引', '公司財報：營收指引、毛利率', '台積電月營收與法說會', 'AI 晶片出口管制'] },
+    etf: { label: '市值型 ETF', events: ['大盤距高點跌幅（判斷加碼）', '前幾大成分股重大消息'] },
+    fin: { label: '金融股', events: ['每月自結盈餘', '配息政策與殖利率', '利率走向', '合併、增資等重大訊息'] },
+    other: { label: '其他', events: ['公司財報與月營收', '重大訊息'] },
+  };
+  const TICKERS = {
+    NVDA: ['輝達', 'ai', 'us'], AVGO: ['博通', 'ai', 'us'], AMD: ['超微', 'ai', 'us'], TSM: ['台積電 ADR', 'ai', 'us'], '2330': ['台積電', 'ai', 'tw'], '2454': ['聯發科', 'ai', 'tw'], '3711': ['日月光投控', 'ai', 'tw'], '2382': ['廣達', 'ai', 'tw'],
+    '0050': ['元大台灣50', 'etf', 'tw'], '006208': ['富邦台50', 'etf', 'tw'], VOO: ['Vanguard S&P 500', 'etf', 'us'], VTI: ['Vanguard 全市場', 'etf', 'us'], SPY: ['SPDR S&P 500', 'etf', 'us'],
+    '2880': ['華南金', 'fin', 'tw'], '2881': ['富邦金', 'fin', 'tw'], '2882': ['國泰金', 'fin', 'tw'], '2883': ['凱基金', 'fin', 'tw'], '2884': ['玉山金', 'fin', 'tw'], '2885': ['元大金', 'fin', 'tw'], '2886': ['兆豐金', 'fin', 'tw'], '2887': ['台新新光金', 'fin', 'tw'], '2889': ['國票金', 'fin', 'tw'], '2890': ['永豐金', 'fin', 'tw'], '2891': ['中信金', 'fin', 'tw'], '2892': ['第一金', 'fin', 'tw'], '2834': ['臺企銀', 'fin', 'tw'], '2801': ['彰銀', 'fin', 'tw'], '5880': ['合庫金', 'fin', 'tw'],
+  };
+
+  let step = 0, qi = 0, tab = 'lite', nextId = 4;
+  let holdings = [
+    { id: 1, code: 'NVDA', shares: '20', cost: '100000', mode: 'dca', amt: '5000', ans: {}, own: {} },
+    { id: 2, code: '0050', shares: '1000', cost: '90000', mode: 'dca', amt: '3000', ans: {}, own: {} },
+    { id: 3, code: '2884', shares: '2000', cost: '80000', mode: 'lump', amt: '', ans: {}, own: {} },
+  ];
+
+  const info = (code) => { const c = String(code || '').trim().toUpperCase(); const t = TICKERS[c]; return t ? { code: c, name: t[0], type: t[1], mkt: t[2] } : { code: c, name: c ? '未收錄' : '', type: 'other', mkt: /^\d/.test(c) ? 'tw' : 'us' }; };
+  const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (v == null) continue; if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } kids.flat().forEach((k) => k != null && e.append(k)); return e; };
+  const valid = () => holdings.filter((h) => h.code.trim());
+  const ansOf = (h, k) => h.ans[k] !== undefined ? h.ans[k] : SUGGEST[info(h.code).type][k];
+  const fmt0 = (n) => Math.round(n).toLocaleString('zh-TW');
+  const sgn = (n, d = 1) => (n > 0 ? '+' : '') + n.toFixed(d);
+  const cls = (n) => n > 0 ? 'up' : n < 0 ? 'dn' : 'mu';
+  const md = (d) => d.slice(5).replace('-', '/');
+  const tagsOf = (i) => [i.code, i.type, i.type + '-' + i.mkt];
+
+  const textOf = (h, k) => {
+    const v = ansOf(h, k);
+    if (v === 'own') return (h.own[k] || '').trim() || '（自己填，尚未輸入）';
+    if (v === undefined) return '（未回答）';
+    if (k === 'dip') return v === 'no' ? '不加碼' : (info(h.code).type === 'etf' ? `大盤距高點跌 ${v}% 多買一次` : `距高點跌 ${v}% 且理由還成立，加碼一次`);
+    const q = QUESTIONS.find((x) => x.k === k); const o = q.o.find((x) => x[0] === v); return o ? o[1] : '';
+  };
+
+  /* 依快照算出每檔數字 */
+  function calc(h) {
+    const i = info(h.code); const p = PX[i.code]; const sh = Number(h.shares) || 0; const cost = Number(h.cost) || 0;
+    const r = { i, has: !!p, sh, cost };
+    if (p) {
+      r.date = p[0]; r.px = p[1]; r.chg = (p[1] / p[2] - 1) * 100; r.fh = (p[1] / p[3] - 1) * 100;
+      r.value = sh * p[1] * (i.mkt === 'us' ? SNAP_FX : 1); r.dayTwd = sh * (p[1] - p[2]) * (i.mkt === 'us' ? SNAP_FX : 1);
+      if (cost && sh) { r.pnl = r.value - cost; r.pnlPct = (r.value / cost - 1) * 100; }
+    }
+    /* ETF 的加碼看大盤 */
+    const idx = i.type === 'etf' ? MKT.find((m) => m[0] === (i.mkt === 'tw' ? '台股加權指數' : 'S&P 500')) : null;
+    r.dipBase = idx ? idx[0] : '本身'; r.dipNow = idx ? (idx[2] / idx[4] - 1) * 100 : r.fh;
+    const dv = ansOf(h, 'dip'); r.dipTh = dv && /^\d+$/.test(dv) ? -Number(dv) : null;
+    r.hit = r.dipTh != null && r.dipNow != null && r.dipNow <= r.dipTh;
+    r.ev = EVENTS.filter((e) => e[1].includes(i.code)).sort((a, b) => b[0].localeCompare(a[0]));
+    const why = ansOf(h, 'why');
+    if (why === undefined || why === 'unsure') { r.st = ['na', '待確認']; r.act = '先整理持有理由'; }
+    else if (r.hit) { r.st = ['warn', '達加碼門檻']; r.act = '確認理由還成立，再決定加碼'; }
+    else { r.st = ['ok', '完好']; r.act = h.mode === 'dca' ? '照常定期定額' : '續抱'; }
+    return r;
+  }
+
+  function renderSteps() {
+    const ol = document.getElementById('steps'); ol.replaceChildren();
+    STEP_NAMES.forEach((n, i) => { const b = el('button', { type: 'button', class: i < step ? 'done' : '', onclick: () => go(i) }, `${i + 1}. ${n}`); if (i === step) b.setAttribute('aria-current', 'step'); ol.append(el('li', {}, b)); });
+    document.getElementById('prevBtn').disabled = step === 0;
+    const nb = document.getElementById('nextBtn');
+    nb.hidden = step === 3; nb.disabled = step === 0 && !valid().length;
+    nb.textContent = step === 1 && qi < 2 ? '下一題' : step === 2 ? '產生 prompt' : '下一步';
+  }
+  function go(i) { if (i > 0 && !valid().length) return; if (i === 1 && step !== 1) qi = 0; step = i; render(); window.scrollTo({ top: 0 }); }
+
+  /* ---------- Step 1 ---------- */
+  function step1() {
+    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' }, el('h2', { text: '先列出你的持股' }), el('p', { class: 'lead', text: '填代號和股數，就能看到比重、損益和近期事件。下面三檔是範例，可以直接改或刪掉。' }));
+    holdings.forEach((h) => {
+      const i = info(h.code);
+      const tagEl = el('span', { class: 'tag', text: i.code ? `${i.name}・${TYPES[i.type].label}` : '輸入代號' });
+      const inp = (key, attrs, onInput) => { const x = el('input', { id: key + '-' + h.id, autocomplete: 'off', ...attrs }); x.addEventListener('input', () => onInput(x)); return x; };
+      const code = inp('code', { value: h.code, placeholder: '例如 2330、NVDA' }, (x) => { h.code = x.value; h.ans = {}; const n = info(h.code); tagEl.textContent = n.code ? `${n.name}・${TYPES[n.type].label}` : '輸入代號'; renderSteps(); });
+      const shares = inp('sh', { value: h.shares, placeholder: '例如 1000', inputmode: 'decimal' }, (x) => { h.shares = x.value.replace(/[^\d.]/g, ''); });
+      const cost = inp('cost', { value: h.cost, placeholder: '選填，填了才算損益', inputmode: 'numeric' }, (x) => { h.cost = x.value.replace(/[^\d]/g, ''); });
+      const mode = el('select', { id: 'mode-' + h.id }, el('option', { value: 'dca', text: '定期定額' }), el('option', { value: 'lump', text: '單筆持有' }));
+      mode.value = h.mode; mode.addEventListener('change', () => { h.mode = mode.value; render(); });
+      const amt = inp('amt', { value: h.amt, placeholder: '選填', inputmode: 'numeric' }, (x) => { h.amt = x.value.replace(/[^\d]/g, ''); });
+      box.append(el('div', { class: 'card' }, el('div', { class: 'hrow' },
+        el('label', { class: 'f full', for: 'code-' + h.id }, '代號', code),
+        el('label', { class: 'f', for: 'sh-' + h.id }, '持有股數', shares),
+        el('label', { class: 'f', for: 'cost-' + h.id }, '總成本（台幣）', cost),
+        el('label', { class: 'f', for: 'mode-' + h.id }, '買法', mode),
+        h.mode === 'dca' ? el('label', { class: 'f', for: 'amt-' + h.id }, '每月金額（台幣）', amt) : el('div'),
+        el('div', { class: 'foot' }, tagEl, el('button', { type: 'button', class: 'btn ghost', onclick: () => { holdings = holdings.filter((x) => x !== h); render(); } }, '刪除')))));
+    });
+    box.append(el('button', { type: 'button', class: 'btn', onclick: () => { holdings.push({ id: nextId++, code: '', shares: '', cost: '', mode: 'dca', amt: '', ans: {}, own: {} }); render(); document.getElementById('code-' + (nextId - 1))?.focus(); } }, '＋ 新增一檔'));
+    box.append(el('p', { class: 'note', text: 'Demo 收錄 28 檔常見的 AI 半導體、市值型 ETF、金融股，股價與新聞是 2026-10-19 的快照。沒收錄的代號一樣能設定論點，只是預覽會顯示「未取得」。' }));
+    return box;
+  }
+
+  /* ---------- Step 2 ---------- */
+  function step2() {
+    const q = QUESTIONS[qi];
+    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' },
+      el('div', { class: 'qhead' }, el('span', { class: 'qcount', text: `問題 ${qi + 1} / 3` }), el('h2', { text: q.t }), el('p', { class: 'lead', text: q.sub })));
+    const card = el('div', { class: 'card' });
+    valid().forEach((h) => {
+      const i = info(h.code); const sug = SUGGEST[i.type][q.k]; const cur = ansOf(h, q.k);
+      const chips = el('div', { class: 'chips', role: 'group', 'aria-label': `${i.code} ${q.t}` });
+      q.o.forEach(([v, lab]) => chips.append(el('button', { type: 'button', class: 'chip', 'aria-pressed': String(cur === v), onclick: () => { h.ans[q.k] = v; render(); } }, lab, v === sug ? el('span', { class: 'sug', text: '建議' }) : null)));
+      chips.append(el('button', { type: 'button', class: 'chip', 'aria-pressed': String(cur === 'own'), onclick: () => { h.ans[q.k] = 'own'; render(); document.getElementById(`own-${h.id}-${q.k}`)?.focus(); } }, '自己填'));
+      const row = el('div', { class: 'qrow' }, el('div', { class: 'qrow-head' }, el('span', { class: 'code', text: i.code }), el('span', { text: i.name }), el('span', { class: 'tag', text: TYPES[i.type].label })), chips);
+      if (cur === 'own') {
+        const inp = el('input', { id: `own-${h.id}-${q.k}`, value: h.own[q.k] || '', placeholder: q.k === 'dip' ? '例如：跌 25% 且外資連續賣超時' : '用你自己的話寫一句' });
+        inp.addEventListener('input', () => { h.own[q.k] = inp.value; });
+        row.append(inp);
+      }
+      card.append(row);
+    });
+    box.append(card, el('p', { class: 'note', text: '標「建議」的是依類型預先選好的答案，可以直接用，也可以改。' }));
+    return box;
+  }
+
+  /* ---------- Step 3：儀表板預覽 ---------- */
+  function step3() {
+    const hs = valid(); const rs = hs.map(calc);
+    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' });
+    const withVal = rs.filter((r) => r.value); const tot = withVal.reduce((s, r) => s + r.value, 0);
+    const withCost = rs.filter((r) => r.pnl != null); const pnl = withCost.reduce((s, r) => s + r.pnl, 0); const costSum = withCost.reduce((s, r) => s + r.cost, 0);
+    const day = withVal.reduce((s, r) => s + r.dayTwd, 0);
+    const tagSet = new Set(rs.flatMap((r) => tagsOf(r.i)));
+    const cal = CAL.filter((c) => c[1].some((t) => tagSet.has(t)));
+    const hits = rs.filter((r) => r.hit); const top = withVal.slice().sort((a, b) => b.value - a.value)[0];
+    const aiLike = withVal.filter((r) => r.i.type === 'ai' || (r.i.type === 'etf' && r.i.mkt === 'tw'));
+
+    /* 標題＋一句話結論 */
+    const parts = [];
+    parts.push(hits.length ? `${hits.map((r) => r.i.code).join('、')} 碰到你設的加碼門檻，先確認理由還成立。` : `${hs.length} 檔都還在你設的條件內，不需要動作。`);
+    if (top && tot) parts.push(`最大部位是 ${top.i.code}（${(top.value / tot * 100).toFixed(0)}%），距一年高點 ${sgn(top.fh)}%。`);
+    const nx = cal.find((c) => /財報|營收/.test(c[2])) || cal[0];
+    if (nx) parts.push(`下個重點：${md(nx[0])} ${nx[2].split('：')[0].replace(/（.*?）/, '')}。`);
+    const lastDates = [...new Set(rs.filter((r) => r.has).map((r) => (r.i.mkt === 'us' ? '美股 ' : '台股 ') + md(r.date)))].sort().join('、');
+    box.append(el('header', { class: 'd-head' },
+      el('h2', { text: '持股健康儀表板（預覽）' }),
+      el('p', { class: 'take', text: parts.join('') }),
+      el('div', { class: 'asof', text: `資料快照 2026-10-19｜收盤日 ${lastDates || '未取得'}｜來源 Yahoo Finance、Google 新聞` }),
+      el('nav', { class: 'strip', 'aria-label': '各檔燈號' }, rs.map((r) => { const a = el('a', { href: '#h-' + r.i.code }, el('i', { class: 'dot ' + r.st[0] }), el('span', { class: 'code', text: r.i.code }), el('span', { class: 'mu', text: r.st[1] })); a.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('h-' + r.i.code)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); return a; }))));
+
+    /* 摘要數字 */
+    const tiles = [
+      ['總市值（台幣）', tot ? fmt0(tot) : '未取得', tot ? `美股以 ${SNAP_FX} 換算` : '填股數才算得出來', ''],
+      ['未實現損益', withCost.length ? (pnl >= 0 ? '+' : '') + fmt0(pnl) : '—', withCost.length ? `${sgn((pnl / costSum) * 100)}%` : '填總成本才算損益', withCost.length ? cls(pnl) : ''],
+      ['最近一日變動', tot ? (day >= 0 ? '+' : '') + fmt0(day) : '—', tot ? `${sgn(day / (tot - day) * 100, 2)}%` : '', tot ? cls(day) : ''],
+      ['碰到加碼門檻', hits.length + ' 檔', hits.length ? hits.map((r) => r.i.code).join('、') : '目前都沒碰到', ''],
+    ];
+    box.append(el('div', { class: 'tiles' }, tiles.map(([a, b, c, k]) => el('div', { class: 'tile' }, el('div', { class: 'lb', text: a }), el('div', { class: 'big ' + k, text: b }), el('div', { class: 'sub ' + k, text: c })))));
+
+    if (aiLike.length >= 2 && aiLike.some((r) => r.i.type === 'etf') && tot) box.append(el('p', { class: 'alert', text: `集中度提醒：${aiLike.map((r) => r.i.code).join('、')} 合計佔 ${(aiLike.reduce((s, r) => s + r.value, 0) / tot * 100).toFixed(0)}%。台股市值型 ETF 約一半是台積電，會跟 AI 半導體同漲同跌。` }));
+
+    /* 每檔狀態 */
+    const hold = el('div', { class: 'hold' });
+    rs.forEach((r) => {
+      const why = [];
+      if (r.has && r.dipTh != null) why.push(r.hit ? `${r.dipBase === '本身' ? '' : r.dipBase}距高點 ${sgn(r.dipNow)}%，已碰到 ${r.dipTh}% 加碼門檻。` : `${r.dipBase === '本身' ? '' : r.dipBase}距高點 ${sgn(r.dipNow)}%，離 ${r.dipTh}% 加碼門檻還差 ${(r.dipNow - r.dipTh).toFixed(1)} 個百分點。`);
+      else if (r.has) why.push(`距高點 ${sgn(r.fh)}%，沒有設加碼條件。`);
+      if (r.ev[0]) why.push(`最新：${md(r.ev[0][0])} ${r.ev[0][4]}（${r.ev[0][3]}）`);
+      else if (r.has) why.push('近兩週沒有跟論點相關的新聞。');
+      if (!r.has) why.push('這檔不在 Demo 收錄範圍；實際使用時，AI 會幫你抓股價和新聞。');
+      const cell = (lb, txt, k) => el('div', {}, el('span', { text: lb }), el('span', { class: k || '', text: txt }));
+      hold.append(el('article', { class: 'hc ' + r.st[0], id: 'h-' + r.i.code },
+        el('div', { class: 'hc-top' }, el('div', {}, el('span', { class: 'hc-name', text: r.i.name }), el('span', { class: 'hc-code', text: r.i.code })), el('span', { class: 'pill ' + r.st[0], text: r.st[1] })),
+        el('div', { class: 'hc-act', text: r.act }),
+        el('p', { class: 'hc-why', text: why.join('') }),
+        el('div', { class: 'hc-nums' },
+          cell('股價', r.has ? (r.i.mkt === 'us' ? '$' : '') + r.px.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '未取得'),
+          cell('單日', r.has ? sgn(r.chg, 2) + '%' : '—', r.has ? cls(r.chg) : 'mu'),
+          cell('距高點', r.has ? sgn(r.fh) + '%' : '—', r.has ? cls(r.fh) : 'mu'),
+          cell('損益', r.pnlPct != null ? sgn(r.pnlPct) + '%' : '—', r.pnlPct != null ? cls(r.pnlPct) : 'mu'))));
+    });
+    box.append(el('section', { class: 'card' }, el('h3', { text: '每檔狀態' }),
+      el('p', { class: 'note', html: null }, el('b', { style: 'color:var(--ok)', text: '綠＝完好' }), '，照計畫走；', el('b', { style: 'color:var(--warn)', text: '黃＝留意或達加碼門檻' }), '，先確認理由；', el('b', { style: 'color:var(--bad)', text: '紅＝受損' }), '，檢討是否停扣；灰＝待確認。'), hold,
+      el('p', { class: 'demo-note', text: 'Demo 的燈號只依你的答案和跌幅判斷。實際使用時，AI 會讀財報和新聞，判斷你寫的理由還成不成立。' })));
+
+    /* 部位比重 */
+    if (tot) {
+      const colors = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
+      const sorted = withVal.slice().sort((a, b) => b.value - a.value);
+      box.append(el('section', { class: 'card' }, el('h3', { text: '部位比重' }), el('p', { class: 'note', text: '以台幣市值計算。' }),
+        el('div', { class: 'wbar', role: 'img', 'aria-label': sorted.map((r) => `${r.i.code} ${(r.value / tot * 100).toFixed(0)}%`).join('，') }, sorted.map((r, k) => { const s = el('i', { title: `${r.i.name} ${r.i.code}：${(r.value / tot * 100).toFixed(1)}%，${fmt0(r.value)} 元` }); s.style.flex = String(r.value); s.style.background = colors[Math.min(k, 5)]; return s; })),
+        el('div', { class: 'wleg' }, sorted.map((r, k) => { const b = el('b'); b.style.background = colors[Math.min(k, 5)]; return el('span', {}, b, `${r.i.code} ${(r.value / tot * 100).toFixed(1)}%・${fmt0(r.value)} 元`); }))));
+    }
+
+    /* 加碼條件＋本週重點 */
+    const rules = el('div', {});
+    rs.filter((r) => r.dipTh != null && r.dipNow != null).forEach((r) => {
+      const lo = 40; const tr = el('div', { class: 'track' }); const bar = el('i', { class: r.hit ? 'hit' : '' }); bar.style.width = Math.min(100, Math.abs(Math.min(0, r.dipNow)) / lo * 100) + '%';
+      const th = el('s'); th.style.left = (Math.abs(r.dipTh) / lo * 100) + '%'; tr.append(bar, th);
+      rules.append(el('div', { class: 'rule' }, el('div', { class: 'rule-top' }, el('span', { class: 'code', text: r.i.code }), el('span', { class: cls(r.dipNow), text: sgn(r.dipNow) + '%' })), tr,
+        el('div', { class: 'rule-txt', text: textOf(holdings.find((h) => info(h.code).code === r.i.code), 'dip') + (r.dipBase === '本身' ? '' : `（看${r.dipBase}）`) }),
+        el('div', { class: 'rule-txt', text: '觸發：' + (r.hit ? '是' : '否') })));
+    });
+    const week = [];
+    MKT.slice(0, 3).forEach((m) => { if (m[5].some((t) => tagSet.has(t))) week.push(`${md(m[1])} ${m[0]} 收 ${m[2].toLocaleString('en-US', { maximumFractionDigits: 0 })} 點，單日 ${sgn((m[2] / m[3] - 1) * 100, 2)}%，距一年高點 ${sgn((m[2] / m[4] - 1) * 100)}%。`); });
+    const seen = new Set();
+    rs.flatMap((r) => r.ev).sort((a, b) => b[0].localeCompare(a[0])).forEach((e) => { if (seen.has(e[4]) || seen.size >= 2) return; seen.add(e[4]); week.push(`${md(e[0])} ${e[4]}（${e[3]}）。`); });
+    box.append(el('div', { class: 'grid2' },
+      el('section', { class: 'card' }, el('h3', { text: '加碼條件' }), el('p', { class: 'note', text: '灰條是目前距高點的跌幅，直線是門檻；變紅代表觸發。' }), rules.childNodes.length ? rules : el('p', { class: 'note', text: '沒有設定加碼條件。' })),
+      el('section', { class: 'card' }, el('h3', { text: '本週重點' }), el('ul', { class: 'lst' }, week.map((t) => el('li', { text: t }))),
+        el('h3', { text: '接下來要看', style: 'margin-top:6px' }), el('ul', { class: 'lst' }, cal.slice(0, 2).map((c) => el('li', { text: `${md(c[0])} ${c[2]}` }))))));
+
+    /* 市場概況 */
+    const mrows = MKT.filter((m) => m[5].some((t) => tagSet.has(t)) || (m[0] === '美元兌台幣' && rs.some((r) => r.i.mkt === 'us')));
+    box.append(el('section', { class: 'card' }, el('h3', { text: '市場概況' }), el('p', { class: 'note', text: '前一個交易日收盤。' }),
+      el('div', { class: 'tbl-wrap' }, el('table', {}, el('thead', {}, el('tr', {}, el('th', { text: '指標' }), el('th', { text: '日期' }), el('th', { class: 'r', text: '收盤' }), el('th', { class: 'r', text: '單日' }), el('th', { class: 'r', text: '距一年高點' }))),
+        el('tbody', {}, mrows.map((m) => { const c = (m[2] / m[3] - 1) * 100; const f = (m[2] / m[4] - 1) * 100; return el('tr', {}, el('td', { text: m[0] }), el('td', { class: 'mu', text: md(m[1]) }), el('td', { class: 'r', text: m[2].toLocaleString('en-US', { maximumFractionDigits: m[2] < 100 ? 3 : 2 }) }), el('td', { class: 'r ' + cls(c), text: sgn(c, 2) + '%' }), el('td', { class: 'r ' + cls(f), text: sgn(f) + '%' })); }))))));
+
+    /* 近期事件＋重要日期 */
+    const evs = []; const seen2 = new Set();
+    rs.flatMap((r) => r.ev.map((e) => [e, r.i.code])).sort((a, b) => b[0][0].localeCompare(a[0][0])).forEach(([e, c]) => { if (seen2.has(e[4]) || evs.length >= 8) return; seen2.add(e[4]); evs.push([e, e[1].filter((x) => rs.some((r) => r.i.code === x)).join('、')]); });
+    const imp = { pos: ['pos', '正面'], neg: ['neg', '負面'], neu: ['neu', '中性'] };
+    box.append(el('div', { class: 'grid2' },
+      el('section', { class: 'card' }, el('h3', { text: '近期事件' }), el('p', { class: 'note', text: '只列跟你持股相關的新聞，標日期和來源。' }),
+        evs.length ? el('div', { class: 'ev' }, evs.flatMap(([e, codes]) => [el('div', { class: 'd', text: md(e[0]) }), el('div', {}, el('span', { class: 'ip ' + imp[e[2]][0], text: imp[e[2]][1] }), el('span', { class: 'code', text: codes + ' ' }), e[4], el('span', { class: 'src', text: `（${e[3]}）` }))])) : el('p', { class: 'note', text: '近兩週沒有相關新聞。' })),
+      el('section', { class: 'card' }, el('h3', { text: '重要日期' }), el('p', { class: 'note', text: '標「預估」的日期以公司公告為準。' }),
+        cal.length ? el('div', { class: 'ev' }, cal.flatMap((c) => [el('div', { class: 'd', text: md(c[0]) }), el('div', { text: c[2] })])) : el('p', { class: 'note', text: '依你的持股，看公司自己的財報公告日。' }))));
+
+    /* 論點表 */
+    box.append(el('section', { class: 'card' }, el('h3', { text: '持有論點與檢討條件' }), el('p', { class: 'note', text: '燈號就是依這張表判斷，回上一步可以改。' }),
+      el('div', { class: 'tbl-wrap' }, el('table', {}, el('thead', {}, el('tr', {}, ['代號', '持有理由', '檢討條件', '加碼條件'].map((t) => el('th', { text: t })))),
+        el('tbody', {}, hs.map((h) => el('tr', {}, el('td', { class: 'code', text: info(h.code).code }), el('td', { text: textOf(h, 'why') }), el('td', { text: textOf(h, 'exit') }), el('td', { text: textOf(h, 'dip') }))))))));
+
+    /* 範例週報 */
+    const emo = { ok: '🟢', warn: '🟡', bad: '🔴', na: '⚪' };
+    const subj = hits.length ? `【持股監控】週報：${hits.map((r) => r.i.code).join('、')} 達加碼門檻，先確認理由` : '【持股監控】週報：照常買進，無需動作';
+    box.append(el('section', { class: 'card' }, el('h3', { text: '每週六你會收到的信' }),
+      el('div', { class: 'mail' }, el('div', { class: 'subj', text: subj }),
+        el('div', { class: 'body' }, el('p', { text: parts[0] }), el('p', { text: rs.map((r) => `${emo[r.st[0]]} ${r.i.code} ${r.st[1]}`).join('　') }),
+          withCost.length ? el('p', { class: 'note', text: `總市值 ${fmt0(tot)} 元，未實現損益 ${(pnl >= 0 ? '+' : '') + fmt0(pnl)} 元（${sgn(pnl / costSum * 100)}%）` }) : null,
+          el('p', { class: 'note', text: '下週要看：' + (cal.slice(0, 2).map((c) => `${md(c[0])} ${c[2].split('：')[0]}`).join('；') || '無') }))),
+      el('p', { class: 'note', text: '平常不寄信；只有燈號改變、碰到加碼條件、重要財報公布，以及每週一封摘要時才會寄。' })));
+    return box;
+  }
+
+  /* ---------- Step 4 ---------- */
+  function holdingLines() {
+    return valid().map((h) => { const i = info(h.code);
+      const pos = [h.shares ? `${h.shares} 股` : '', h.cost ? `總成本 ${Number(h.cost).toLocaleString()} 元` : '', h.mode === 'dca' ? `定期定額${h.amt ? '每月 ' + Number(h.amt).toLocaleString() + ' 元' : ''}` : '單筆持有'].filter(Boolean).join('，');
+      const w = ansOf(h, 'why') === 'unsure' ? '還不確定，請先整理這檔常見的持有理由讓我挑' : textOf(h, 'why');
+      const x = ansOf(h, 'exit') === 'unsure' ? '還不確定，請依持有理由建議 2–3 個檢討條件讓我挑' : textOf(h, 'exit');
+      return `- ${i.code} ${i.name}（${TYPES[i.type].label}；${pos}）\n  持有理由：${w}\n  檢討條件：${x}\n  加碼條件：${textOf(h, 'dip')}`; }).join('\n');
+  }
+  function watchLines() { return [...new Set(valid().map((h) => info(h.code).type))].map((t) => `- ${TYPES[t].label}：${TYPES[t].events.join('；')}`).join('\n'); }
+  const RULES = `【燈號規則】\n- 🟢 完好：理由成立，照計畫買\n- 🟡 留意：有一項指標轉弱，暫停加碼，等下次財報\n- 🔴 受損：檢討條件被觸發，提醒我檢討是否停扣（不等於賣出）\n- ⚪ 待確認：我還沒有自己的理由\n\n【誠實規則】\n只用實際查到的資料，每個數字和新聞都標註來源與日期；查不到就寫「未取得」，不要推測或編造數字。`;
+  const OUTPUT = `【每次請輸出】\n1. 一句話結論：這週要不要做任何事\n2. 各檔：燈號、股價、單日漲跌、距一年高點、損益（有成本才算），加一句有日期和來源的理由\n3. 部位比重（以台幣市值計算）\n4. 是否碰到加碼條件，以及離門檻還差多少\n5. 近期事件：只列跟持股有關的，每則標日期、來源、正面／負面／中性\n6. 接下來要看的日期（最多 3 項，預估的要標「預估」）`;
+  function litePrompt() {
+    return `你是我的持股論點檢查助理。我是長期投資人，不看技術分析。請依我寫下的持有理由檢查持股，不要給買賣建議，只判斷理由還成不成立。\n\n【我的持股與論點】\n${holdingLines()}\n\n【每類持股要留意的事件】\n${watchLines()}\n\n${RULES}\n\n${OUTPUT}\n\n請先確認你理解以上設定，有「還不確定」的先跟我釐清，再開始第一次檢查。之後我每週會說「照論點檢查本週持股」。`;
+  }
+  function fullPrompt() {
+    return `我想建立一套自動化的持股論點監控（適用可排程、可上網的 AI 助理）。請照以下設定建立，每一步完成後告訴我結果。\n\n【我的持股與論點】\n${holdingLines()}\n\n【每類持股要留意的事件】\n${watchLines()}\n\n【要建立的東西】\n1. 持股儀表板，由上到下：一句話結論、各檔燈號列、摘要數字（總市值、未實現損益、最近一日變動、碰到加碼門檻的檔數）、每檔卡片（燈號、建議動作、一句有日期的理由、股價、單日、距高點、損益）、部位比重圖、加碼條件進度條、本週重點、市場概況、近期事件（日期＋來源）、重要日期、論點表。頁首標最後更新時間和股價日期。\n2. 每個交易日收盤後的排程：抓價格與新聞，依論點判斷燈號；休市不抓。\n3. 通知（寄到我的信箱）：只在燈號改變、碰到加碼條件、重要財報公布、抓資料失敗，以及每週一封精簡週報時通知；主旨要看得出要不要行動。\n\n【資料來源原則】\n- 每個面向先定首選與備援來源，不要每次查全部網站。\n- 優先用官方來源：美股看 SEC 財報新聞稿與法說逐字稿；台股看公開資訊觀測站、證交所。\n- 先實測每個來源讀不讀得到，讀不到的不放進排程。\n\n${RULES}\n\n請先列出你打算怎麼建，以及在我的環境下做不到的部分，等我確認再開始。`;
+  }
+  function step4() {
+    const box = el('section', { class: 'panel', style: 'display:grid;gap:14px' }, el('h2', { text: '把設定帶走' }), el('p', { class: 'lead', text: '複製 prompt 貼到你常用的 AI 對話，就能拿到跟預覽一樣、但用當天資料的檢查結果。' }));
+    const tabs = el('div', { class: 'tabs', role: 'tablist' });
+    [['lite', '輕量版：每週手動問'], ['full', '完整版：自動化']].forEach(([k, l]) => tabs.append(el('button', { type: 'button', class: 'btn', role: 'tab', 'aria-selected': String(tab === k), onclick: () => { tab = k; render(); } }, l)));
+    const ta = el('textarea', { id: 'prompt', readonly: '', 'aria-label': 'prompt 內容' }); ta.value = tab === 'lite' ? litePrompt() : fullPrompt();
+    const done = el('span', { class: 'copied', 'aria-live': 'polite' });
+    const copy = el('button', { type: 'button', class: 'btn primary', onclick: async () => { try { await navigator.clipboard.writeText(ta.value); done.textContent = '已複製'; } catch (e) { ta.focus(); ta.select(); done.textContent = '已全選，請按複製'; } setTimeout(() => { done.textContent = ''; }, 2500); } }, '複製 prompt');
+    box.append(tabs, el('p', { class: 'note', text: tab === 'lite' ? '貼到 ChatGPT、Claude、Gemini 都可以（需要能上網查資料），之後每週說一句「照論點檢查本週持股」。' : '給想要自動排程、儀表板和通知的人。需要能排程、能上網的 AI 工具。' }), ta, el('div', { style: 'display:flex;gap:10px;align-items:center' }, copy, done), el('p', { class: 'note', text: '這是方法示範，不是投資建議。prompt 只包含你在這頁輸入的內容。' }));
+    return box;
+  }
+
+  function render() { renderSteps(); document.getElementById('view').replaceChildren([step1, step2, step3, step4][step]()); }
+  document.getElementById('prevBtn').addEventListener('click', () => { if (step === 1 && qi > 0) { qi--; render(); window.scrollTo({ top: 0 }); } else if (step > 0) { const was = step; go(step - 1); if (was === 2) { qi = 2; render(); } } });
+  document.getElementById('nextBtn').addEventListener('click', () => { if (step === 1 && qi < 2) { qi++; render(); window.scrollTo({ top: 0 }); } else if (step < 3) go(step + 1); });
+  render();
+})();
+</script>
+</body>
+</html>
