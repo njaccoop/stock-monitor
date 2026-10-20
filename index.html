@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="貼一段 prompt 給你的 AI，它會問你 3 個問題、排好定期檢查，持股有事才通知你。">
-<meta property="og:title" content="持股論點設定器">
-<meta property="og:description" content="貼一段 prompt 給你的 AI，它會問你 3 個問題、排好定期檢查，持股有事才通知你。">
+<meta name="description" content="貼一段 prompt 給你的 AI，它會問你幾個問題、排好定期檢查，持股有事才通知你。">
+<meta property="og:title" content="持股有事叫我">
+<meta property="og:description" content="貼一段 prompt 給你的 AI，它會問你幾個問題、排好定期檢查，持股有事才通知你。">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#161a21">
-<title>持股論點設定器</title>
+<title>持股有事叫我</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -145,6 +145,7 @@ td.r, th.r { text-align: right; }
 /* 模擬通知 */
 .notif { all: unset; box-sizing: border-box; cursor: pointer; position: fixed; z-index: 20; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 10px); width: min(420px, calc(100% - 24px)); transform: translateX(-50%); display: grid; gap: 3px; padding: 12px 14px; border-radius: 16px; background: rgba(40,46,58,.96); border: 1px solid #3a4250; box-shadow: 0 12px 32px rgba(0,0,0,.5); color: var(--fg); }
 .notif[hidden] { display: none; }
+.notif.inpage { position: absolute; top: 90px; }
 .notif:focus-visible { outline: 2px solid var(--accent); }
 .n-app { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .n-ico { width: 20px; height: 20px; border-radius: 5px; background: var(--accent); color: #fff; font-size: 10px; display: grid; place-items: center; font-weight: 700; }
@@ -174,7 +175,7 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><h1>持股論點設定器</h1><span>範例・資料 2026-10-19</span></div>
+    <div class="brand"><h1>持股有事叫我</h1><span>範例・資料 2026-10-19</span></div>
   </div>
 </header>
 
@@ -472,6 +473,22 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     return box;
   }
 
+  /* ---------- 流量統計：填入代號才會啟用（Artifact 內會被擋，只在 GitHub Pages 生效）---------- */
+  const ANALYTICS = { goatcounter: 'njaccoop', ga4: '' }; // 例：goatcounter: 'ninja'（ninja.goatcounter.com）、ga4: 'G-XXXXXXX'
+  function loadAnalytics() {
+    try {
+      if (ANALYTICS.goatcounter) { const sc = document.createElement('script'); sc.async = true; sc.src = 'https://gc.zgo.at/count.js'; sc.dataset.goatcounter = `https://${ANALYTICS.goatcounter}.goatcounter.com/count`; document.head.append(sc); }
+      if (ANALYTICS.ga4) { const sc = document.createElement('script'); sc.async = true; sc.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS.ga4}`; document.head.append(sc); window.dataLayer = window.dataLayer || []; window.gtag = function () { dataLayer.push(arguments); }; gtag('js', new Date()); gtag('config', ANALYTICS.ga4); }
+    } catch (e) {}
+  }
+  function track(name) {
+    try {
+      if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: 'event-' + name, title: name, event: true });
+      if (window.gtag && ANALYTICS.ga4) gtag('event', name);
+    } catch (e) {}
+  }
+  loadAnalytics();
+
   /* ---------- 頁面：展示頁 ---------- */
   let HOLD_EL = null, MAIL_EL = null, NOTIF_SUBJ = '', notified = false;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -488,44 +505,46 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     hideNotif(); const body = document.getElementById('mailDlgBody'); body.replaceChildren();
     if (MAIL_EL) body.append(MAIL_EL.cloneNode(true));
     body.append(el('p', { class: 'note', text: '沒事不通知；只有燈號改變、碰到加碼條件、持股公布財報或法說，以及每週一次摘要時才通知。' }));
-    openDlg('mailDlg');
+    openDlg('mailDlg'); track('open_notification');
   }
   function openPrompt() {
     const d = document.getElementById('mailDlg'); if (d.open) d.close();
     const body = document.getElementById('promptDlgBody'); body.replaceChildren();
     const ta = el('textarea', { id: 'prompt', readonly: '', 'aria-label': 'prompt 內容' }); ta.value = interviewPrompt();
     const done = el('span', { class: 'copied', 'aria-live': 'polite' });
-    const copy = el('button', { type: 'button', class: 'btn primary', onclick: async () => { try { await navigator.clipboard.writeText(ta.value); done.textContent = '已複製，去貼給你的 AI'; } catch (e) { ta.focus(); ta.select(); done.textContent = '已全選，請按複製'; } setTimeout(() => { done.textContent = ''; }, 3000); } }, '複製 prompt');
+    const copy = el('button', { type: 'button', class: 'btn primary', onclick: async () => { try { await navigator.clipboard.writeText(ta.value); done.textContent = '已複製，去貼給你的 AI'; track('copy_prompt'); } catch (e) { ta.focus(); ta.select(); done.textContent = '已全選，請按複製'; } setTimeout(() => { done.textContent = ''; }, 3000); } }, '複製 prompt');
     body.append(
       el('ol', { class: 'lst', style: 'padding-left:1.3em' },
         el('li', { text: '複製下面的 prompt。' }),
         el('li', { text: '貼到支援排程任務的 AI，例如 ChatGPT 的排程任務、Gemini 的排定動作、Claude 的排程任務；要用能上網查資料的模式。' }),
-        el('li', { text: '回答它的問題，確認它回覆「已建立排程」和下次執行時間，並打開那個 App 的通知。' })),
+        el('li', { text: '回答它的問題（約 3 輪），它會建好排程、教你打開通知，再送一則測試通知確認你收得到。' })),
       el('div', { style: 'display:flex;gap:10px;align-items:center' }, copy, done), ta,
       el('p', { class: 'note', text: '各家的功能名稱、免費版能不能用、每天能排幾次都常在變，以官方說明為準。通知靠各 App 的推播或信件，偶爾會漏，重要日期建議自己也看一眼。' }),
       el('p', { class: 'demo-note', text: '想要一個隨時能打開、每天自動更新的持股儀表板？「儀表板版」下次分享。' }),
       el('p', { class: 'note', text: '這是方法示範，不是投資建議。' }));
-    openDlg('promptDlg');
+    openDlg('promptDlg'); track('open_prompt');
   }
   function showNotif() {
     if (notified || !NOTIF_SUBJ || document.querySelector('dialog[open]')) return; notified = true;
     const n = document.getElementById('notif'); document.getElementById('notifSubj').textContent = NOTIF_SUBJ;
-    n.hidden = false; if (!reduce) { n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); }
-    setTimeout(hideNotif, 9000);
+    n.classList.toggle('inpage', TALL); n.hidden = false; track('notif_shown'); if (!reduce) { n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); }
+    setTimeout(hideNotif, 12000);
   }
   function hideNotif() { document.getElementById('notif').hidden = true; }
 
   function interviewPrompt() {
     return `你是我的持股論點檢查助理。我是長期投資人。你的工作是依我自己寫下的理由和條件，判斷理由還成不成立、條件有沒有被觸發；不給買賣建議，也不預測股價。
 
-【一、訪談】一次問一題；我說「一次列出來」就改成一次問完。
-1. 持股：代號、股數；總成本、是否定期定額（每月金額）可選填。
-2. 每一檔問同樣三題，附選項，也可以讓我自己寫；我回答「還不確定」，就整理這檔常見的選項讓我挑：
-   - 為什麼買？（看好產業長期趨勢／公司競爭力強、對手追不上／參與整體市場成長／穩定領股息／還不確定）
-   - 發生什麼事會停扣或檢討？（產業需求轉弱／營收或獲利連續衰退／配息明顯減少／不賣，只看加碼時機／還不確定）
-   - 跌多少想多買一點？以距一年最高收盤計算（10%／20%／30%／不加碼）。台股 ETF 看加權指數、美股 ETF 看 S&P 500；個股要理由仍成立才算觸發。
-3. 依持股類型列出要追蹤的事件讓我確認，例如：AI 半導體看雲端大廠資本支出、台積電月營收；ETF 看大盤距高點；金融股看自結盈餘、配息、合併或增資。
-4. 整理成【設定表】：代號、持有理由、檢討條件、加碼條件、追蹤事件、目前燈號。等我確認。
+【一、訪談】為了節省對話次數，分三輪問，每輪一次問完所有持股：
+第 1 輪：請我照這個格式列出所有持股（成本和定期定額可以不填，但有填才算得出損益）：
+  代號 股數 總成本（每月定額金額）
+  例：NVDA 20股 成本100000（每月定額5000）
+      2884 2000股 成本80000
+第 2 輪：問下面三題。如果你的介面能顯示可點選的選項（按鈕、單選、問卷元件），就用它出題，盡量一次問完多題，選項最後加一個「自己寫」；不能顯示才改成文字，請我每檔回一行，例如「NVDA A/A/30；2884 D/C/不加碼」。
+  題 1 為什麼買？A 看好產業長期趨勢｜B 公司競爭力強、對手追不上｜C 參與整體市場成長｜D 穩定領股息｜E 還不確定
+  題 2 發生什麼事會停扣或檢討？A 產業需求轉弱｜B 營收或獲利連續衰退｜C 配息明顯減少｜D 不賣，只看加碼時機｜E 還不確定
+  題 3 距一年最高收盤跌多少想多買一點？10｜20｜30｜不加碼（%）。台股 ETF 看加權指數、美股 ETF 看 S&P 500；個股要理由仍成立才算觸發。
+第 3 輪：整理成【設定表】（代號、持有理由、檢討條件、加碼條件、追蹤事件、目前燈號），一次給我確認或修改。我選 E 的，在表裡提出 2–3 個常見選項讓我挑；追蹤事件依持股類型建議，例如 AI 半導體看雲端大廠資本支出、台積電月營收，ETF 看大盤距高點，金融股看自結盈餘、配息、合併或增資。
 
 【二、判斷規則】
 - 燈號：🟢 完好＝理由成立｜🟡 留意＝有指標轉弱｜🔴 受損＝檢討條件被觸發（提醒我檢討，不等於賣出）｜⚪ 待確認＝我還沒有理由。
@@ -559,17 +578,24 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
 對論點的意義：支持你的理由「穩定領股息」，沒有碰到檢討條件「配息明顯減少」。10/19 收盤 49.35 元，距一年高點 0.0%。
 週報：通知的 1–5 點，再加上各檔收盤、單日漲跌、距一年高點、損益（有成本才算）、部位比重、離加碼門檻還差多少。
 
-【六、排程】確認設定表後，先做一次檢查給我看，再建立兩個排程（台北時間）：
-1. 每週六 21:00：週報。
-2. 每個交易日 21:00：只在燈號改變、碰到加碼條件、持股公布財報／法說會／月營收或自結盈餘時發通知；沒事不發。
-- 排程內容要能單獨執行：把設定表和第二到五段完整寫進排程任務本身，不要只寫「照之前的設定」。
-- 燈號有沒有改變，以設定表的「目前燈號」比較；燈號改變後請更新它。若排程無法自己更新，就以這個對話中最近一次的結果比較，並在通知裡註明比較基準。
-- 排程次數有限就只建第 1 個；完全不能排程就直接告訴我，改成我每週說「照設定表檢查持股」。
-建立完成後告訴我：排程名稱、下次執行時間、要去哪裡打開通知。
+【六、排程與通知】設定表確認後照順序做，每一步回報結果；不要跳過，也不要沒試就說做不到。
+1. 先做一次檢查給我看（週報格式）。
+2. 確認這個平台能不能建立排程任務、能不能主動通知我。不確定就實際建一個試試，用結果回答。
+3. 建立兩個排程（台北時間）：
+   (a) 每週六 21:00：週報。
+   (b) 每個交易日 21:00：只在燈號改變、碰到加碼條件、持股公布財報／法說會／月營收或自結盈餘時發通知；沒事不發。
+   - 排程內容要能單獨執行：把設定表和第二到五段完整寫進排程任務本身，不要只寫「照之前的設定」。
+   - 燈號有沒有改變，以設定表的「目前燈號」比較；燈號改變後請更新它。若排程無法自己更新，就以這個對話中最近一次的結果比較，並在通知裡註明比較基準。
+   - 排程次數有限就只建 (a)。
+4. 告訴我在這個平台打開通知的具體步驟：App 裡的通知開關在哪、手機系統要允許這個 App 通知、有沒有 email 通知可以一起開。
+5. 建一個 3 分鐘後執行的一次性測試排程，主旨「【持股監控】測試通知」，內容「看到這則代表通知設定成功」，請我收到後回覆。
+6. 我說沒收到，就依序帶我檢查，每查一項重送一次測試：排程清單裡測試任務有沒有執行 → App 內的排程通知開關 → 手機系統的 App 通知權限 → 勿擾或專注模式 → 手機是否登入同一個帳號 → 改用 email 通知。
+7. 平台完全不能排程或通知，就直接告訴我，改成我每週說「照設定表檢查持股」。
+最後列出：排程名稱、下次執行時間、測試通知結果。
 
 【七、之後要改】我可能會說「新增 2330」「NVDA 加碼門檻改 25%」「移除 2884」「多追蹤某個事件」「改成週日通知」。每次修改：更新設定表 → 同步更新排程內容 → 列出改了什麼。
 
-現在請從訪談第 1 題開始。`;
+現在請從第 1 輪開始。`;
   }
 
   function render() {
@@ -580,6 +606,10 @@ footer.bar .privacy { font-size: 12px; color: var(--muted); }
     }
     window.addEventListener('scroll', () => { if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 40) showNotif(); }, { passive: true });
   }
+  /* 在 App 內嵌的視窗中，頁面可能整頁展開、不會捲動，改成載入後直接在頁首顯示 */
+  const isTall = () => window.innerHeight > 1200 && document.documentElement.scrollHeight - window.innerHeight < 60;
+  let TALL = false;
+  setTimeout(() => { TALL = isTall(); if (TALL) showNotif(); else setTimeout(showNotif, 4500); }, 1500);
   let dwellSet = false;
   window.addEventListener('scroll', () => { if (!dwellSet && window.scrollY > 200) { dwellSet = true; setTimeout(showNotif, 4000); } }, { passive: true });
   document.getElementById('notif').addEventListener('click', openMail);
